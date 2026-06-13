@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Audit only the packages we directly reference; do not fail on transitive
+         advisories inside Microsoft's own framework packages (no fix version available). -->
+    <NuGetAuditMode>direct</NuGetAuditMode>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

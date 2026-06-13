@@ -1,0 +1,6 @@
+@DoubleCheck_HostAddress = http://localhost:5247
+
+GET {{DoubleCheck_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

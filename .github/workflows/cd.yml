@@ -1,0 +1,24 @@
+name: CD (Render)
+
+# Optional: Render can also auto-deploy on push to main without this workflow.
+# Use this only if you want CI to gate the deploy. Set the secret RENDER_DEPLOY_HOOK
+# (Render dashboard -> your service -> Settings -> Deploy Hook).
+
+on:
+  workflow_run:
+    workflows: [ "CI" ]
+    types: [ completed ]
+    branches: [ main ]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          else
+            echo "RENDER_DEPLOY_HOOK not set; skipping (relying on Render auto-deploy)."
+          fi
