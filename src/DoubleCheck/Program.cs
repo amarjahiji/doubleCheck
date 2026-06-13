@@ -59,6 +59,8 @@ builder.Services.AddMemoryCache();
 
 // ---- Application services (each developer registers theirs here) ----
 // AMAR:
+builder.Services.AddScoped<ITokenService, JwtTokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 // BEKIM: AI provider (Stub for deploy/tests, Ollama for local)
 if (string.Equals(builder.Configuration["Ai:Provider"], "Ollama", StringComparison.OrdinalIgnoreCase))

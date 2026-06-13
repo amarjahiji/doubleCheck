@@ -27,6 +27,7 @@ public class ExceptionHandlingMiddleware
             var status = ex switch
             {
                 NotFoundException   => HttpStatusCode.NotFound,
+                UnauthorizedException => HttpStatusCode.Unauthorized,
                 ForbiddenException  => HttpStatusCode.Forbidden,
                 ValidationException => HttpStatusCode.BadRequest,
                 ConflictException   => HttpStatusCode.Conflict,
