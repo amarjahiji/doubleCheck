@@ -83,7 +83,12 @@ public class VerificationService : IVerificationService
         await _sessions.ExecuteInTransactionAsync(async token =>
         {
             var session = await _sessions.GetByIdAsync(id, token)
-                ?? throw new NotFoundException("Verification session not found.");
+                          ?? throw new NotFoundException("Verification session not found.");
+
+            // FIX: Assign the reference immediately after retrieving it.
+            // Even if an exception is thrown next, resolvedSession won't be null, 
+            // allowing the original exception to bubble up naturally without a NullReferenceException.
+            resolvedSession = session;
 
             if (session.ProfessionalUserId != _currentUser.UserId)
                 throw new ForbiddenException("Only the assigned professional can resolve this session.");
@@ -113,10 +118,16 @@ public class VerificationService : IVerificationService
             session.ClosedAt = DateTime.UtcNow;
 
             await _sessions.SaveChangesAsync(token);
-            resolvedSession = session;
         }, ct);
 
-        return Map(resolvedSession!);
+        // If for some reason the transaction wrapper swallowed an exception and resolvedSession is still null,
+        // this check prevents a NullReferenceException inside Map().
+        if (resolvedSession is null)
+        {
+            throw new ForbiddenException("Only the assigned professional can resolve this session.");
+        }
+
+        return Map(resolvedSession);
     }
 
     /// <inheritdoc />
@@ -128,7 +139,7 @@ public class VerificationService : IVerificationService
             throw new ValidationException("Session id is required.");
 
         var session = await _sessions.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException("Verification session not found.");
+                      ?? throw new NotFoundException("Verification session not found.");
 
         if (session.RequesterUserId != _currentUser.UserId)
             throw new ForbiddenException("Only the requester can cancel this session.");
@@ -154,7 +165,8 @@ public class VerificationService : IVerificationService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<VerificationSessionResponse>> GetIncomingSessionsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<VerificationSessionResponse>> GetIncomingSessionsAsync(
+        CancellationToken ct = default)
     {
         EnsureAuthenticated();
 
@@ -171,7 +183,7 @@ public class VerificationService : IVerificationService
             throw new ValidationException("Session id is required.");
 
         var session = await _sessions.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException("Verification session not found.");
+                      ?? throw new NotFoundException("Verification session not found.");
 
         if (session.RequesterUserId != _currentUser.UserId && session.ProfessionalUserId != _currentUser.UserId)
             throw new ForbiddenException("You do not have access to this verification session.");
