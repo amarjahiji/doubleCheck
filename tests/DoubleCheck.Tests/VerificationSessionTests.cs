@@ -8,7 +8,7 @@ using Xunit;
 
 namespace DoubleCheck.Tests;
 
-/// <summary>Examples for Drin: (1) EF InMemory data-layer query, (2) NSubstitute mock of IWalletService.</summary>
+/// <summary>Examples for Drin:(1) EF InMemory data-layer query, (2) NSubstitute mock of IWalletService.</summary>
 public class VerificationSessionTests
 {
     private static AppDbContext NewDb() =>
