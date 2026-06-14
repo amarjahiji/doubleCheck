@@ -15,6 +15,10 @@ public class AdminController : ControllerBase
     public AdminController(IAdminService admin) => _admin = admin;
 
     /// <summary>Assign a role to a user (admin only — the core authz endpoint).</summary>
+    [HttpGet("users")]
+    public async Task<ActionResult<IReadOnlyList<AdminUserResponse>>> GetUsers(CancellationToken ct)
+        => Ok(await _admin.GetUsersAsync(ct));
+
     [HttpPost("users/{userId:guid}/roles")]
     public async Task<IActionResult> AssignRole(Guid userId, AssignRoleRequest request, CancellationToken ct)
     {
@@ -31,6 +35,12 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>Approve a professional application: assigns the Professional role and creates the profile.</summary>
+    [HttpGet("professional-applications")]
+    public async Task<ActionResult<IReadOnlyList<AdminProfessionalApplicationResponse>>> GetProfessionalApplications(
+        [FromQuery] string? status,
+        CancellationToken ct)
+        => Ok(await _admin.GetProfessionalApplicationsAsync(status, ct));
+
     [HttpPost("professional-applications/{id:guid}/approve")]
     public async Task<ActionResult<ProfessionalProfileResponse>> Approve(Guid id, CancellationToken ct)
         => Ok(await _admin.ApproveApplicationAsync(id, ct));
@@ -39,4 +49,8 @@ public class AdminController : ControllerBase
     [HttpPost("professional-applications/{id:guid}/reject")]
     public async Task<ActionResult<ProfessionalApplicationResponse>> Reject(Guid id, CancellationToken ct)
         => Ok(await _admin.RejectApplicationAsync(id, ct));
+
+    [HttpGet("stats")]
+    public async Task<ActionResult<AdminStatsResponse>> GetStats(CancellationToken ct)
+        => Ok(await _admin.GetStatsAsync(ct));
 }

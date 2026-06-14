@@ -32,6 +32,7 @@ public class ExceptionHandlingMiddleware
                 ValidationException => HttpStatusCode.BadRequest,
                 ConflictException   => HttpStatusCode.Conflict,
                 DomainException     => HttpStatusCode.BadRequest,
+                BadGatewayException => HttpStatusCode.BadGateway,
                 _                   => HttpStatusCode.InternalServerError
             };
 
