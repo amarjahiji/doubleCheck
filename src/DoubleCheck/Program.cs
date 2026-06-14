@@ -5,7 +5,6 @@ using DoubleCheck.Data;
 using DoubleCheck.Entities;
 using DoubleCheck.Infrastructure;
 using DoubleCheck.Middleware;
-using DoubleCheck.Repositories;
 using DoubleCheck.Services;
 using DoubleCheck.Services.Ai;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -72,9 +71,6 @@ if (string.Equals(builder.Configuration["Ai:Provider"], "Ollama", StringComparis
     builder.Services.AddHttpClient<IAiService, OllamaAiService>();
 else
     builder.Services.AddScoped<IAiService, StubAiService>();
-builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
-builder.Services.AddScoped<IMessageRepository, MessageRepository>();
-builder.Services.AddScoped<IChatService, ChatService>();
 // DRIN: register verification + matching services here.
 
 // ---- Controllers + Swagger ----

@@ -11,4 +11,3 @@ public sealed class ForbiddenException : AppException { public ForbiddenExceptio
 public sealed class ValidationException : AppException { public ValidationException(string m) : base(m) { } }// 400
 public sealed class ConflictException : AppException { public ConflictException(string m) : base(m) { } }    // 409
 public sealed class DomainException : AppException { public DomainException(string m) : base(m) { } }         // 400
-public sealed class BadGatewayException : AppException { public BadGatewayException(string m) : base(m) { } }  // 502

@@ -28,19 +28,13 @@ public class OllamaAiService : IAiService
         {
             var resp = await _http.PostAsJsonAsync("/api/generate",
                 new { model = _model, prompt, stream = false }, ct);
-            if (!resp.IsSuccessStatusCode)
-                throw new BadGatewayException($"AI provider returned {(int)resp.StatusCode}.");
-
+            resp.EnsureSuccessStatusCode();
             var payload = await resp.Content.ReadFromJsonAsync<OllamaResponse>(cancellationToken: ct);
             return payload?.Response?.Trim() ?? throw new DomainException("Empty response from Ollama.");
         }
         catch (HttpRequestException ex)
         {
-            throw new BadGatewayException($"AI provider unavailable: {ex.Message}");
-        }
-        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
-        {
-            throw new BadGatewayException($"AI provider timed out: {ex.Message}");
+            throw new DomainException($"AI provider unavailable: {ex.Message}");
         }
     }
 
