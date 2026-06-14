@@ -76,6 +76,10 @@ builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
 builder.Services.AddScoped<IMessageRepository, MessageRepository>();
 builder.Services.AddScoped<IChatService, ChatService>();
 // DRIN: register verification + matching services here.
+builder.Services.AddScoped<IProfessionalReadRepository, ProfessionalReadRepository>();
+builder.Services.AddScoped<IVerificationRepository, VerificationRepository>();
+builder.Services.AddScoped<IExpertMatchingService, ExpertMatchingService>();
+builder.Services.AddScoped<IVerificationService, VerificationService>();
 
 // ---- Controllers + Swagger ----
 builder.Services.AddControllers();
