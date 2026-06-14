@@ -4,12 +4,13 @@ using DoubleCheck.Exceptions;
 
 namespace DoubleCheck.Services.Ai;
 
-/// <summary>Real local LLM via Ollama HTTP API (Ai:Provider=Ollama). Bekim: tune prompt/model.</summary>
+/// <summary>Generates AI answers through the local Ollama HTTP API.</summary>
 public class OllamaAiService : IAiService
 {
     private readonly HttpClient _http;
     private readonly string _model;
 
+    /// <summary>Creates an Ollama-backed AI service from HTTP and configuration dependencies.</summary>
     public OllamaAiService(HttpClient http, IConfiguration config)
     {
         _http = http;
@@ -17,6 +18,7 @@ public class OllamaAiService : IAiService
         _http.BaseAddress = new Uri(config["Ai:OllamaUrl"] ?? "http://localhost:11434");
     }
 
+    /// <inheritdoc />
     public async Task<string> GenerateAnswerAsync(string question, string categoryName, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(question))
@@ -28,13 +30,19 @@ public class OllamaAiService : IAiService
         {
             var resp = await _http.PostAsJsonAsync("/api/generate",
                 new { model = _model, prompt, stream = false }, ct);
-            resp.EnsureSuccessStatusCode();
+            if (!resp.IsSuccessStatusCode)
+                throw new BadGatewayException("AI provider returned an unsuccessful response.");
+
             var payload = await resp.Content.ReadFromJsonAsync<OllamaResponse>(cancellationToken: ct);
             return payload?.Response?.Trim() ?? throw new DomainException("Empty response from Ollama.");
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
-            throw new DomainException($"AI provider unavailable: {ex.Message}");
+            throw new BadGatewayException("AI provider is unavailable.");
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new BadGatewayException("AI provider timed out.");
         }
     }
 

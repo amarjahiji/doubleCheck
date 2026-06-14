@@ -72,6 +72,9 @@ if (string.Equals(builder.Configuration["Ai:Provider"], "Ollama", StringComparis
     builder.Services.AddHttpClient<IAiService, OllamaAiService>();
 else
     builder.Services.AddScoped<IAiService, StubAiService>();
+builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
+builder.Services.AddScoped<IMessageRepository, MessageRepository>();
+builder.Services.AddScoped<IChatService, ChatService>();
 // DRIN: register verification + matching services here.
 builder.Services.AddScoped<IProfessionalReadRepository, ProfessionalReadRepository>();
 builder.Services.AddScoped<IVerificationRepository, VerificationRepository>();

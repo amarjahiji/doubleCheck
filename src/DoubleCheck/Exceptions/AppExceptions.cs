@@ -11,3 +11,9 @@ public sealed class ForbiddenException : AppException { public ForbiddenExceptio
 public sealed class ValidationException : AppException { public ValidationException(string m) : base(m) { } }// 400
 public sealed class ConflictException : AppException { public ConflictException(string m) : base(m) { } }    // 409
 public sealed class DomainException : AppException { public DomainException(string m) : base(m) { } }         // 400
+/// <summary>Represents an upstream provider failure that should be returned as HTTP 502.</summary>
+public sealed class BadGatewayException : AppException
+{
+    /// <summary>Creates a bad-gateway exception with a client-safe message.</summary>
+    public BadGatewayException(string m) : base(m) { }
+}
