@@ -7,6 +7,7 @@ using DoubleCheck.Repositories;
 
 namespace DoubleCheck.Services;
 
+/// <summary>Coordinates verification sessions, authorization checks, and wallet settlement.</summary>
 public class VerificationService : IVerificationService
 {
     private readonly IVerificationRepository _sessions;
@@ -14,6 +15,7 @@ public class VerificationService : IVerificationService
     private readonly IWalletService _wallet;
     private readonly ICurrentUser _currentUser;
 
+    /// <summary>Creates a verification service with session, professional, wallet, and caller dependencies.</summary>
     public VerificationService(
         IVerificationRepository sessions,
         IProfessionalReadRepository professionals,
@@ -26,6 +28,7 @@ public class VerificationService : IVerificationService
         _currentUser = currentUser;
     }
 
+    /// <inheritdoc />
     public async Task<VerificationSessionResponse> CreateSessionAsync(
         CreateVerificationSessionRequest request,
         CancellationToken ct = default)
@@ -61,6 +64,7 @@ public class VerificationService : IVerificationService
         return Map(session);
     }
 
+    /// <inheritdoc />
     public async Task<VerificationSessionResponse> ResolveSessionAsync(
         Guid id,
         ResolveVerificationSessionRequest request,
@@ -74,16 +78,18 @@ public class VerificationService : IVerificationService
         if (string.IsNullOrWhiteSpace(request.Solution))
             throw new ValidationException("Solution is required.");
 
-        var session = await _sessions.GetByIdAsync(id, ct)
-            ?? throw new NotFoundException("Verification session not found.");
-
-        if (session.ProfessionalUserId != _currentUser.UserId)
-            throw new ForbiddenException("Only the assigned professional can resolve this session.");
-
-        EnsureOpen(session);
+        VerificationSession? resolvedSession = null;
 
         await _sessions.ExecuteInTransactionAsync(async token =>
         {
+            var session = await _sessions.GetByIdAsync(id, token)
+                ?? throw new NotFoundException("Verification session not found.");
+
+            if (session.ProfessionalUserId != _currentUser.UserId)
+                throw new ForbiddenException("Only the assigned professional can resolve this session.");
+
+            EnsureOpen(session);
+
             var debited = await _wallet.TryDebitAsync(
                 session.RequesterUserId,
                 session.AgreedRate,
@@ -107,11 +113,13 @@ public class VerificationService : IVerificationService
             session.ClosedAt = DateTime.UtcNow;
 
             await _sessions.SaveChangesAsync(token);
+            resolvedSession = session;
         }, ct);
 
-        return Map(session);
+        return Map(resolvedSession!);
     }
 
+    /// <inheritdoc />
     public async Task<VerificationSessionResponse> CancelSessionAsync(Guid id, CancellationToken ct = default)
     {
         EnsureAuthenticated();
@@ -136,6 +144,7 @@ public class VerificationService : IVerificationService
         return Map(session);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<VerificationSessionResponse>> GetMySessionsAsync(CancellationToken ct = default)
     {
         EnsureAuthenticated();
@@ -144,6 +153,7 @@ public class VerificationService : IVerificationService
         return sessions.Select(Map).ToList();
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<VerificationSessionResponse>> GetIncomingSessionsAsync(CancellationToken ct = default)
     {
         EnsureAuthenticated();
@@ -152,6 +162,7 @@ public class VerificationService : IVerificationService
         return sessions.Select(Map).ToList();
     }
 
+    /// <inheritdoc />
     public async Task<VerificationSessionResponse> GetSessionAsync(Guid id, CancellationToken ct = default)
     {
         EnsureAuthenticated();

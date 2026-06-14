@@ -5,6 +5,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace DoubleCheck.Services;
 
+/// <summary>Finds available experts for categories and caches short-lived matching results.</summary>
 public class ExpertMatchingService : IExpertMatchingService
 {
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(45);
@@ -12,12 +13,14 @@ public class ExpertMatchingService : IExpertMatchingService
     private readonly IProfessionalReadRepository _professionals;
     private readonly IMemoryCache _cache;
 
+    /// <summary>Creates an expert matching service with professional reads and memory cache.</summary>
     public ExpertMatchingService(IProfessionalReadRepository professionals, IMemoryCache cache)
     {
         _professionals = professionals;
         _cache = cache;
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<ExpertMatchResponse>> GetMatchingExpertsAsync(
         Guid categoryId,
         CancellationToken ct = default)

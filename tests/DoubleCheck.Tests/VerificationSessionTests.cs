@@ -15,6 +15,7 @@ using Xunit;
 
 namespace DoubleCheck.Tests;
 
+/// <summary>Tests the verification workflow services, controller actions, and repositories.</summary>
 public class VerificationSessionTests
 {
     private static AppDbContext NewDb() =>
@@ -40,6 +41,7 @@ public class VerificationSessionTests
             });
     }
 
+    /// <summary>Verifies that expert matching returns available professionals for a category.</summary>
     [Fact]
     public async Task ExpertMatchingService_ReturnsAvailableExpertsForCategory()
     {
@@ -69,6 +71,7 @@ public class VerificationSessionTests
         await repo.Received(1).GetAvailableExpertsByCategoryAsync(categoryId, Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that expert matching returns an empty list when no professionals are available.</summary>
     [Fact]
     public async Task ExpertMatchingService_WhenNoneAvailable_ReturnsEmptyList()
     {
@@ -88,6 +91,7 @@ public class VerificationSessionTests
         Assert.Empty(result);
     }
 
+    /// <summary>Verifies that repeated expert matching for the same category uses the cache.</summary>
     [Fact]
     public async Task ExpertMatchingService_RepeatedCategory_UsesCache()
     {
@@ -117,6 +121,7 @@ public class VerificationSessionTests
         await repo.Received(1).GetAvailableExpertsByCategoryAsync(categoryId, Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that creating a session stores snapshots and the agreed professional rate.</summary>
     [Fact]
     public async Task CreateSessionAsync_CreatesOpenSessionWithSnapshotsAndAgreedRate()
     {
@@ -157,6 +162,7 @@ public class VerificationSessionTests
         await sessions.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that session creation rejects unavailable professionals.</summary>
     [Fact]
     public async Task CreateSessionAsync_WhenProfessionalUnavailable_ThrowsValidationException()
     {
@@ -180,6 +186,7 @@ public class VerificationSessionTests
         await sessions.DidNotReceive().AddAsync(Arg.Any<VerificationSession>(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that requesters cannot create a verification session with themselves.</summary>
     [Fact]
     public async Task CreateSessionAsync_WhenRequesterSelectsSelf_ThrowsValidationException()
     {
@@ -207,6 +214,7 @@ public class VerificationSessionTests
             Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that resolving a session closes it and credits the professional after debit succeeds.</summary>
     [Fact]
     public async Task ResolveSessionAsync_WhenDebitSucceeds_ClosesSessionAndCreditsProfessional()
     {
@@ -246,6 +254,7 @@ public class VerificationSessionTests
         await sessions.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that failed requester debit leaves the session open and skips professional credit.</summary>
     [Fact]
     public async Task ResolveSessionAsync_WhenDebitFails_LeavesSessionOpenAndDoesNotCredit()
     {
@@ -283,6 +292,7 @@ public class VerificationSessionTests
         await sessions.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that non-assigned professionals cannot resolve a verification session.</summary>
     [Fact]
     public async Task ResolveSessionAsync_WhenNotAssignedProfessional_ThrowsForbiddenException()
     {
@@ -311,6 +321,7 @@ public class VerificationSessionTests
         await wallet.DidNotReceive().TryDebitAsync(Arg.Any<Guid>(), Arg.Any<decimal>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that the requester can cancel an open verification session.</summary>
     [Fact]
     public async Task CancelSessionAsync_WhenRequesterOwnsOpenSession_ClosesAsCancelled()
     {
@@ -342,6 +353,7 @@ public class VerificationSessionTests
         await sessions.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that cancelling an already closed session raises a conflict.</summary>
     [Fact]
     public async Task CancelSessionAsync_WhenAlreadyClosed_ThrowsConflictException()
     {
@@ -371,6 +383,7 @@ public class VerificationSessionTests
         await Assert.ThrowsAsync<ConflictException>(act);
     }
 
+    /// <summary>Verifies that the create endpoint returns a CreatedAtAction result.</summary>
     [Fact]
     public async Task VerificationController_CreateSession_ReturnsCreatedAtAction()
     {
@@ -404,6 +417,7 @@ public class VerificationSessionTests
         Assert.Same(response, created.Value);
     }
 
+    /// <summary>Verifies that forbidden resolve attempts propagate through the controller.</summary>
     [Fact]
     public async Task VerificationController_ResolveSession_WhenServiceForbids_ThrowsForbiddenException()
     {
@@ -422,6 +436,7 @@ public class VerificationSessionTests
         await Assert.ThrowsAsync<ForbiddenException>(act);
     }
 
+    /// <summary>Verifies that incoming repository queries return only open sessions for the professional.</summary>
     [Fact]
     public async Task VerificationRepository_Incoming_ReturnsOnlyOpenSessionsForProfessional()
     {
@@ -443,6 +458,7 @@ public class VerificationSessionTests
         Assert.All(incoming, session => Assert.Equal(SessionStatus.Open, session.Status));
     }
 
+    /// <summary>Verifies that incoming repository queries exclude closed sessions.</summary>
     [Fact]
     public async Task VerificationRepository_Incoming_ExcludesClosedSessions()
     {

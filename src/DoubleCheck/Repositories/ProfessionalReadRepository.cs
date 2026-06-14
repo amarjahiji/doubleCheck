@@ -3,12 +3,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DoubleCheck.Repositories;
 
+/// <summary>Provides read-only EF Core queries over professional profiles and categories.</summary>
 public class ProfessionalReadRepository : IProfessionalReadRepository
 {
     private readonly AppDbContext _db;
 
+    /// <summary>Creates a professional read repository backed by the application database context.</summary>
     public ProfessionalReadRepository(AppDbContext db) => _db = db;
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<ProfessionalExpertMatch>> GetAvailableExpertsByCategoryAsync(
         Guid categoryId,
         CancellationToken ct = default)
@@ -59,6 +62,7 @@ public class ProfessionalReadRepository : IProfessionalReadRepository
             .ToList();
     }
 
+    /// <inheritdoc />
     public async Task<ProfessionalSelection?> GetAvailableProfessionalForCategoryAsync(
         Guid professionalUserId,
         Guid categoryId,
