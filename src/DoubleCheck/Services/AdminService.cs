@@ -102,6 +102,67 @@ public class AdminService : IAdminService
             application.Categories.Select(c => c.CategoryId).ToArray(), application.CreatedAt, application.DecidedAt);
     }
 
+    public async Task<IReadOnlyList<AdminUserResponse>> GetUsersAsync(CancellationToken ct = default)
+    {
+        var users = await _db.Users
+            .OrderBy(u => u.Email)
+            .ToListAsync(ct);
+
+        var result = new List<AdminUserResponse>(users.Count);
+        foreach (var user in users)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+            result.Add(new AdminUserResponse(
+                user.Id,
+                user.Email ?? string.Empty,
+                user.DisplayName,
+                user.Balance,
+                roles.OrderBy(r => r).ToArray()));
+        }
+
+        return result;
+    }
+
+    public async Task<IReadOnlyList<AdminProfessionalApplicationResponse>> GetProfessionalApplicationsAsync(string? status = null, CancellationToken ct = default)
+    {
+        IQueryable<ProfessionalApplication> query = _db.ProfessionalApplications
+            .Include(a => a.Categories)
+            .OrderByDescending(a => a.CreatedAt);
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!Enum.TryParse<ApplicationStatus>(status, ignoreCase: true, out var parsed))
+                throw new ValidationException("Unknown application status.");
+
+            query = query.Where(a => a.Status == parsed);
+        }
+
+        return await query
+            .Select(a => new AdminProfessionalApplicationResponse(
+                a.Id,
+                a.UserId,
+                a.RequestedRate,
+                a.Bio,
+                a.Status.ToString(),
+                a.Categories.Select(c => c.CategoryId).ToArray(),
+                a.CreatedAt,
+                a.DecidedAt))
+            .ToListAsync(ct);
+    }
+
+    public async Task<AdminStatsResponse> GetStatsAsync(CancellationToken ct = default)
+    {
+        var users = await _db.Users.CountAsync(ct);
+        var conversations = await _db.Conversations.CountAsync(ct);
+        var messages = await _db.Messages.CountAsync(ct);
+        var openSessions = await _db.VerificationSessions.CountAsync(s => s.Status == SessionStatus.Open, ct);
+        var closedSessions = await _db.VerificationSessions.CountAsync(s => s.Status == SessionStatus.Closed, ct);
+        var resolvedSessions = await _db.VerificationSessions.CountAsync(s => s.Outcome == SessionOutcome.Resolved, ct);
+        var resolutionRate = closedSessions == 0 ? 0 : (double)resolvedSessions / closedSessions;
+
+        return new AdminStatsResponse(users, conversations, messages, openSessions, closedSessions, resolutionRate);
+    }
+
     private static void EnsureValidRole(string role)
     {
         if (!Roles.All.Contains(role))

@@ -8,4 +8,7 @@ public interface IAdminService
     Task RevokeRoleAsync(Guid userId, string role, CancellationToken ct = default);
     Task<ProfessionalProfileResponse> ApproveApplicationAsync(Guid applicationId, CancellationToken ct = default);
     Task<ProfessionalApplicationResponse> RejectApplicationAsync(Guid applicationId, CancellationToken ct = default);
+    Task<IReadOnlyList<AdminUserResponse>> GetUsersAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<AdminProfessionalApplicationResponse>> GetProfessionalApplicationsAsync(string? status = null, CancellationToken ct = default);
+    Task<AdminStatsResponse> GetStatsAsync(CancellationToken ct = default);
 }
