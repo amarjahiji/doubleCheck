@@ -16,6 +16,7 @@ public class ExceptionHandlingMiddleware
         _logger = logger;
     }
 
+    /// <summary>Invokes the next middleware and converts known application exceptions to JSON errors.</summary>
     public async Task InvokeAsync(HttpContext context)
     {
         try

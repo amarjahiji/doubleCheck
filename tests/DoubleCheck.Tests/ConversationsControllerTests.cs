@@ -8,8 +8,10 @@ using Xunit;
 
 namespace DoubleCheck.Tests;
 
+/// <summary>Controller tests for conversation endpoint result behavior.</summary>
 public class ConversationsControllerTests
 {
+    /// <summary>Verifies that creating a conversation returns a created-at-action result.</summary>
     [Fact]
     public async Task Create_ReturnsCreatedAtAction()
     {
@@ -28,6 +30,7 @@ public class ConversationsControllerTests
         Assert.Same(response, created.Value);
     }
 
+    /// <summary>Verifies that ownership failures are surfaced from the chat service.</summary>
     [Fact]
     public async Task Get_WhenServiceRejectsOwnership_ThrowsForbidden()
     {

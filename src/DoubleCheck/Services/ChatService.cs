@@ -10,6 +10,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace DoubleCheck.Services;
 
+/// <summary>Coordinates user-owned conversations, message persistence, and cached AI replies.</summary>
 public class ChatService : IChatService
 {
     private static readonly TimeSpan AiCacheTtl = TimeSpan.FromHours(1);
@@ -20,6 +21,7 @@ public class ChatService : IChatService
     private readonly ICurrentUser _currentUser;
     private readonly IMemoryCache _cache;
 
+    /// <summary>Creates a chat service with repository, AI, caller, and cache dependencies.</summary>
     public ChatService(
         IConversationRepository conversations,
         IMessageRepository messages,
@@ -34,6 +36,7 @@ public class ChatService : IChatService
         _cache = cache;
     }
 
+    /// <inheritdoc />
     public async Task<ConversationResponse> CreateConversationAsync(CreateConversationRequest request, CancellationToken ct = default)
     {
         EnsureAuthenticated();
@@ -58,60 +61,55 @@ public class ChatService : IChatService
         return ToConversationResponse(conversation, categoryName);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<ConversationResponse>> GetMyConversationsAsync(CancellationToken ct = default)
     {
         EnsureAuthenticated();
 
-        var conversations = await _conversations.GetForUserAsync(_currentUser.UserId, ct);
-        var responses = new List<ConversationResponse>(conversations.Count);
-
-        foreach (var conversation in conversations)
-        {
-            var categoryName = await _conversations.GetCategoryNameAsync(conversation.CategoryId, ct) ?? string.Empty;
-            responses.Add(ToConversationResponse(conversation, categoryName));
-        }
-
-        return responses;
+        var conversations = await _conversations.GetForUserWithCategoryAsync(_currentUser.UserId, ct);
+        return conversations
+            .Select(x => ToConversationResponse(x.Conversation, x.CategoryName))
+            .ToList();
     }
 
+    /// <inheritdoc />
     public async Task<ConversationResponse> GetConversationAsync(Guid id, CancellationToken ct = default)
     {
-        var conversation = await GetOwnedConversationAsync(id, ct);
-        var categoryName = await _conversations.GetCategoryNameAsync(conversation.CategoryId, ct) ?? string.Empty;
-        return ToConversationResponse(conversation, categoryName);
+        var conversation = await GetOwnedConversationWithCategoryAsync(id, ct);
+        return ToConversationResponse(conversation.Conversation, conversation.CategoryName);
     }
 
+    /// <inheritdoc />
     public async Task<SendMessageResponse> SendMessageAsync(Guid conversationId, SendMessageRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Content))
             throw new ValidationException("Message content is required.");
 
-        var conversation = await GetOwnedConversationAsync(conversationId, ct);
-        var categoryName = await _conversations.GetCategoryNameAsync(conversation.CategoryId, ct)
-            ?? throw new ValidationException("Category does not exist.");
+        var conversation = await GetOwnedConversationWithCategoryAsync(conversationId, ct);
 
         var userMessage = new Message
         {
-            ConversationId = conversation.Id,
+            ConversationId = conversation.Conversation.Id,
             Sender = MessageSender.User,
             Content = request.Content.Trim()
         };
-        await _messages.AddAsync(userMessage, ct);
-        await _messages.SaveChangesAsync(ct);
 
-        var aiAnswer = await GetCachedAiAnswerAsync(userMessage.Content, categoryName, ct);
+        var aiAnswer = await GetCachedAiAnswerAsync(userMessage.Content, conversation.CategoryName, ct);
         var aiMessage = new Message
         {
-            ConversationId = conversation.Id,
+            ConversationId = conversation.Conversation.Id,
             Sender = MessageSender.Ai,
             Content = aiAnswer
         };
+
+        await _messages.AddAsync(userMessage, ct);
         await _messages.AddAsync(aiMessage, ct);
         await _messages.SaveChangesAsync(ct);
 
         return new SendMessageResponse(ToMessageResponse(userMessage), ToMessageResponse(aiMessage));
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<MessageResponse>> GetMessagesAsync(Guid conversationId, CancellationToken ct = default)
     {
         await GetOwnedConversationAsync(conversationId, ct);
@@ -127,6 +125,19 @@ public class ChatService : IChatService
             ?? throw new NotFoundException("Conversation not found.");
 
         if (conversation.UserId != _currentUser.UserId)
+            throw new ForbiddenException("You do not own this conversation.");
+
+        return conversation;
+    }
+
+    private async Task<ConversationWithCategory> GetOwnedConversationWithCategoryAsync(Guid id, CancellationToken ct)
+    {
+        EnsureAuthenticated();
+
+        var conversation = await _conversations.GetWithCategoryAsync(id, ct)
+            ?? throw new NotFoundException("Conversation not found.");
+
+        if (conversation.Conversation.UserId != _currentUser.UserId)
             throw new ForbiddenException("You do not own this conversation.");
 
         return conversation;

@@ -7,11 +7,13 @@ using Xunit;
 
 namespace DoubleCheck.Tests;
 
+/// <summary>Repository tests for message ordering and empty-result behavior.</summary>
 public class MessageRepositoryTests
 {
     private static AppDbContext NewDb() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
 
+    /// <summary>Verifies that messages are returned in chronological order.</summary>
     [Fact]
     public async Task GetForConversationAsync_ReturnsMessagesOrderedByCreatedAt()
     {
@@ -34,6 +36,7 @@ public class MessageRepositoryTests
             second => Assert.Equal("Second", second.Content));
     }
 
+    /// <summary>Verifies that unknown conversations return no messages.</summary>
     [Fact]
     public async Task GetForConversationAsync_ForUnknownConversation_ReturnsEmptyList()
     {

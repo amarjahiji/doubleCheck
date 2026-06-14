@@ -10,8 +10,10 @@ using Xunit;
 
 namespace DoubleCheck.Tests;
 
+/// <summary>Service tests for conversation messaging and AI caching behavior.</summary>
 public class ChatServiceTests
 {
+    /// <summary>Verifies that an owned conversation stores user and AI messages.</summary>
     [Fact]
     public async Task SendMessageAsync_ForOwnedConversation_StoresUserAndAiMessages()
     {
@@ -20,8 +22,8 @@ public class ChatServiceTests
         var categoryId = Guid.NewGuid();
         var conversation = new Conversation { Id = Guid.NewGuid(), UserId = userId, CategoryId = categoryId, Title = "Help" };
         var conversations = Substitute.For<IConversationRepository>();
-        conversations.GetByIdAsync(conversation.Id, Arg.Any<CancellationToken>()).Returns(conversation);
-        conversations.GetCategoryNameAsync(categoryId, Arg.Any<CancellationToken>()).Returns("Tech");
+        conversations.GetWithCategoryAsync(conversation.Id, Arg.Any<CancellationToken>())
+            .Returns(new ConversationWithCategory(conversation, "Tech"));
 
         var messages = Substitute.For<IMessageRepository>();
         var ai = Substitute.For<IAiService>();
@@ -38,6 +40,7 @@ public class ChatServiceTests
         await messages.Received(2).AddAsync(Arg.Any<Message>(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that foreign conversations are rejected before any AI or persistence work.</summary>
     [Fact]
     public async Task SendMessageAsync_ForSomeoneElsesConversation_ThrowsForbiddenAndDoesNotCallAi()
     {
@@ -45,7 +48,8 @@ public class ChatServiceTests
         var callerId = Guid.NewGuid();
         var conversation = new Conversation { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), CategoryId = Guid.NewGuid() };
         var conversations = Substitute.For<IConversationRepository>();
-        conversations.GetByIdAsync(conversation.Id, Arg.Any<CancellationToken>()).Returns(conversation);
+        conversations.GetWithCategoryAsync(conversation.Id, Arg.Any<CancellationToken>())
+            .Returns(new ConversationWithCategory(conversation, "Tech"));
         var messages = Substitute.For<IMessageRepository>();
         var ai = Substitute.For<IAiService>();
 
@@ -58,6 +62,7 @@ public class ChatServiceTests
         await messages.DidNotReceive().AddAsync(Arg.Any<Message>(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that identical prompts in the same category reuse the cached AI answer.</summary>
     [Fact]
     public async Task SendMessageAsync_WithSameQuestionAndCategory_UsesCachedAiAnswer()
     {
@@ -66,8 +71,8 @@ public class ChatServiceTests
         var categoryId = Guid.NewGuid();
         var conversation = new Conversation { Id = Guid.NewGuid(), UserId = userId, CategoryId = categoryId };
         var conversations = Substitute.For<IConversationRepository>();
-        conversations.GetByIdAsync(conversation.Id, Arg.Any<CancellationToken>()).Returns(conversation);
-        conversations.GetCategoryNameAsync(categoryId, Arg.Any<CancellationToken>()).Returns("Health");
+        conversations.GetWithCategoryAsync(conversation.Id, Arg.Any<CancellationToken>())
+            .Returns(new ConversationWithCategory(conversation, "Health"));
         var ai = Substitute.For<IAiService>();
         ai.GenerateAnswerAsync("Same question", "Health", Arg.Any<CancellationToken>()).Returns("Cached answer");
 
@@ -86,6 +91,7 @@ public class ChatServiceTests
         await ai.Received(1).GenerateAnswerAsync("Same question", "Health", Arg.Any<CancellationToken>());
     }
 
+    /// <summary>Verifies that the cache key includes category name.</summary>
     [Fact]
     public async Task SendMessageAsync_WithDifferentCategory_MissesAiCache()
     {
@@ -96,10 +102,10 @@ public class ChatServiceTests
         var techConversation = new Conversation { Id = Guid.NewGuid(), UserId = userId, CategoryId = techId };
         var foodConversation = new Conversation { Id = Guid.NewGuid(), UserId = userId, CategoryId = foodId };
         var conversations = Substitute.For<IConversationRepository>();
-        conversations.GetByIdAsync(techConversation.Id, Arg.Any<CancellationToken>()).Returns(techConversation);
-        conversations.GetByIdAsync(foodConversation.Id, Arg.Any<CancellationToken>()).Returns(foodConversation);
-        conversations.GetCategoryNameAsync(techId, Arg.Any<CancellationToken>()).Returns("Tech");
-        conversations.GetCategoryNameAsync(foodId, Arg.Any<CancellationToken>()).Returns("Food");
+        conversations.GetWithCategoryAsync(techConversation.Id, Arg.Any<CancellationToken>())
+            .Returns(new ConversationWithCategory(techConversation, "Tech"));
+        conversations.GetWithCategoryAsync(foodConversation.Id, Arg.Any<CancellationToken>())
+            .Returns(new ConversationWithCategory(foodConversation, "Food"));
         var ai = Substitute.For<IAiService>();
         ai.GenerateAnswerAsync("Same question", Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns("Answer");
 
