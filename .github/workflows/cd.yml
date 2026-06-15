@@ -1,24 +1,58 @@
-name: CD (Render)
+name: CD (Deploy to GCP VM)
 
-# Optional: Render can also auto-deploy on push to main without this workflow.
-# Use this only if you want CI to gate the deploy. Set the secret RENDER_DEPLOY_HOOK
-# (Render dashboard -> your service -> Settings -> Deploy Hook).
+# Runs only after the CI workflow completes successfully on main.
+# Deploys by SSHing into the Compute Engine VM, pulling the latest code,
+# and rebuilding the Docker Compose stack.
+#
+# Required GitHub repository secrets (Settings -> Secrets and variables -> Actions):
+#   VM_HOST        external IP of the VM            (e.g. 34.73.44.233)
+#   VM_USER        SSH username                     (e.g. amarjahiji2004)
+#   VM_SSH_KEY     the PRIVATE key (full contents, including BEGIN/END lines)
+#   VM_APP_DIR     path to the repo on the VM       (e.g. /home/amarjahiji2004/doubleCheck)
 
 on:
   workflow_run:
     workflows: [ "CI" ]
     types: [ completed ]
     branches: [ main ]
+  workflow_dispatch: {}   # allows manual "Run workflow" from the Actions tab
+
+concurrency:
+  group: deploy-vm
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Only deploy when CI passed (skipped for manual workflow_dispatch runs,
+    # which have no workflow_run payload).
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Render deploy
-        run: |
-          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
-            curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-          else
-            echo "RENDER_DEPLOY_HOOK not set; skipping (relying on Render auto-deploy)."
-          fi
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script_stop: true   # abort on the first failed command
+          script: |
+            set -e
+            cd "${{ secrets.VM_APP_DIR }}"
+            echo "Pulling latest code..."
+            git fetch --all
+            git reset --hard origin/main
+            echo "Rebuilding and restarting containers..."
+            docker compose up -d --build
+            echo "Pruning old images..."
+            docker image prune -f
+            echo "Waiting for API to report healthy..."
+            for i in $(seq 1 30); do
+              if curl -fsS http://localhost:8080/health >/dev/null 2>&1; then
+                echo "API is healthy."
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "API did not become healthy in time." >&2
+            docker compose logs --tail=50 api >&2
+            exit 1
